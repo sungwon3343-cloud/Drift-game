@@ -1,0 +1,1121 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+<title>표류 · DRIFT</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@400;600;700&family=Space+Grotesk:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --void-0:#070612; --void-1:#0d0b22; --void-2:#160e33;
+    --probe:#ffd166; --probe-glow:rgba(255,209,102,.55);
+    --hazard:#ff4d6d; --shield:#39d2ff; --slow:#b388ff; --clear:#5cff9d;
+    --ink:#e9e6ff; --ink-dim:#8a85b8; --line:rgba(255,255,255,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+  html,body{height:100%}
+  body{
+    background:
+      radial-gradient(1200px 700px at 50% -10%, var(--void-2), transparent 60%),
+      radial-gradient(900px 900px at 90% 110%, #1a0e2e, transparent 55%),
+      var(--void-0);
+    color:var(--ink); font-family:'Space Grotesk',system-ui,sans-serif;
+    display:flex;align-items:center;justify-content:center;
+    min-height:100%;overflow:hidden;
+    padding:calc(12px + env(safe-area-inset-top)) calc(12px + env(safe-area-inset-right))
+            calc(12px + env(safe-area-inset-bottom)) calc(12px + env(safe-area-inset-left));
+    user-select:none;-webkit-user-select:none;
+  }
+  .frame{ width:min(94vw,460px); display:flex;flex-direction:column;gap:10px; }
+
+  .topbar{ display:flex;align-items:flex-end;justify-content:space-between;gap:8px;padding:0 2px; }
+  .brand{display:flex;flex-direction:column;line-height:1}
+  .brand .kr{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:25px;letter-spacing:6px;
+    background:linear-gradient(100deg,var(--probe),#fff 60%,var(--shield));
+    -webkit-background-clip:text;background-clip:text;color:transparent;
+  }
+  .brand .en{ font-size:10px;letter-spacing:5px;color:var(--ink-dim);margin-top:5px;font-weight:500; }
+  .stage-pill{
+    align-self:center;font-family:'Chakra Petch',sans-serif;font-weight:700;
+    font-size:11px;letter-spacing:3px;padding:6px 13px;border-radius:999px;
+    border:1px solid var(--line);color:var(--ink);background:rgba(255,255,255,.04);
+    white-space:nowrap;transition:border-color .3s,box-shadow .3s;
+  }
+  .stage-pill b{color:var(--shield)}
+  .scoreboard{text-align:right}
+  .scoreboard .label{font-size:9px;letter-spacing:3px;color:var(--ink-dim)}
+  .scoreboard .val{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:23px;
+    font-variant-numeric:tabular-nums;color:var(--probe);text-shadow:0 0 18px var(--probe-glow);
+  }
+  .scoreboard .best{font-size:10px;color:var(--ink-dim);letter-spacing:1px;margin-top:2px}
+
+  .stage{
+    position:relative;width:100%;aspect-ratio:7/9;
+    border:1px solid var(--line);border-radius:18px;overflow:hidden;
+    background:linear-gradient(180deg,rgba(255,255,255,.02),transparent 40%);
+    box-shadow:0 30px 80px -30px #000, inset 0 0 80px -20px rgba(57,210,255,.08);
+  }
+  canvas{display:block;width:100%;height:100%;touch-action:none}
+  .vignette{
+    position:absolute;inset:0;pointer-events:none;z-index:1;
+    background:radial-gradient(120% 100% at 50% 45%, transparent 62%, rgba(4,3,12,.55) 100%);
+  }
+
+  .iconbtn{
+    position:absolute;top:10px;z-index:4;width:40px;height:40px;border-radius:12px;
+    border:1px solid var(--line);background:rgba(13,11,34,.55);color:var(--ink);display:none;
+    align-items:center;justify-content:center;cursor:pointer;backdrop-filter:blur(4px);
+  }
+  .iconbtn.show{display:flex}
+  .iconbtn:active{transform:scale(.92)}
+  .pausebtn{right:10px}
+  .pausebtn span{width:4px;height:14px;background:currentColor;border-radius:2px;margin:0 2px;display:block}
+  .soundbtn{left:10px}
+
+  /* 인게임 아이템 버튼 (스테이지 내부 하단 오버레이) */
+  .itembar{
+    position:absolute;left:0;right:0;bottom:10px;z-index:4;
+    display:none;justify-content:center;gap:10px;padding:0 12px;
+    pointer-events:none;
+  }
+  .itembar.show{display:flex}
+  .ibtn{
+    pointer-events:auto;
+    width:64px;height:64px;border-radius:18px;
+    border:1.5px solid var(--c);
+    background:rgba(10,8,26,.62);backdrop-filter:blur(6px);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:2px;
+    color:var(--ink);cursor:pointer;position:relative;
+    box-shadow:0 6px 22px -10px var(--c);
+    transition:transform .1s ease, opacity .15s ease;
+  }
+  .ibtn:active{transform:scale(.9)}
+  .ibtn.empty{opacity:.32;border-color:var(--line);box-shadow:none}
+  .ibtn.sel{
+    transform:translateY(-6px);
+    border-width:2.5px;
+    background:rgba(20,16,44,.85);
+    box-shadow:0 0 0 3px rgba(255,255,255,.10), 0 10px 30px -8px var(--c);
+  }
+  .ibtn.sel .nm{color:var(--ink)}
+  .ibtn .qtag{
+    display:none;position:absolute;bottom:-9px;left:50%;transform:translateX(-50%);
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:9px;letter-spacing:1px;
+    padding:2px 8px;border-radius:999px;background:var(--c);color:#0a081a;
+  }
+  .ibtn.sel .qtag{display:block}
+  @media (hover:none) and (pointer:coarse){ .ibtn .qtag{display:none !important} }
+  .ibtn .ic{width:16px;height:16px;border-radius:50%;background:var(--c);box-shadow:0 0 12px -1px var(--c)}
+  .ibtn .nm{font-size:9.5px;letter-spacing:1px;color:var(--ink-dim)}
+  .ibtn .ct{
+    position:absolute;top:-7px;right:-7px;min-width:22px;height:22px;padding:0 6px;
+    border-radius:11px;background:var(--c);color:#0a081a;
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:12px;
+    display:flex;align-items:center;justify-content:center;
+  }
+  .ibtn.empty .ct{display:none}
+  .ibtn.flash{animation:ibtnFlash .35s ease}
+  @keyframes ibtnFlash{0%{box-shadow:0 0 0 0 var(--c)}100%{box-shadow:0 0 0 16px transparent}}
+
+  .banner{ position:absolute;left:0;right:0;top:30%;text-align:center;pointer-events:none;opacity:0;z-index:2; }
+  .banner.show{ animation:bannerPop 2.4s ease forwards; }
+  .banner .n{font-family:'Chakra Petch',sans-serif;font-weight:700;letter-spacing:6px;font-size:13px;color:var(--shield)}
+  .banner .t{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:34px;letter-spacing:2px;margin-top:6px;text-shadow:0 0 30px rgba(57,210,255,.45)}
+  .banner .d{font-size:12px;color:var(--ink-dim);margin-top:8px;letter-spacing:1px}
+  @keyframes bannerPop{
+    0%{opacity:0;transform:translateY(16px) scale(.94)}
+    14%{opacity:1;transform:translateY(0) scale(1)}
+    78%{opacity:1;transform:translateY(0) scale(1)}
+    100%{opacity:0;transform:translateY(-10px) scale(1.03)}
+  }
+
+  .countdown{
+    position:absolute;inset:0;display:none;align-items:center;justify-content:center;
+    z-index:5;pointer-events:none;
+  }
+  .countdown.show{display:flex}
+  .countdown .num{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:96px;
+    color:var(--ink);text-shadow:0 0 40px rgba(57,210,255,.5);
+    animation:cdPop .45s ease both;
+  }
+  @keyframes cdPop{0%{opacity:0;transform:scale(1.6)}30%{opacity:1;transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:scale(.92)}}
+
+  .overlay{
+    position:absolute;inset:0;display:flex;flex-direction:column;
+    align-items:center;justify-content:center;text-align:center;gap:14px;padding:24px;z-index:6;
+    background:radial-gradient(circle at 50% 40%,rgba(13,11,34,.74),rgba(7,6,18,.93));
+    backdrop-filter:blur(3px);transition:opacity .25s ease;overflow-y:auto;
+  }
+  .overlay.hidden{opacity:0;pointer-events:none}
+  .overlay h2{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:30px;letter-spacing:3px}
+  .overlay .sub{font-size:13px;color:var(--ink-dim);max-width:31ch;line-height:1.55}
+
+  .howto{display:flex;flex-direction:column;gap:8px;width:100%;max-width:300px}
+  .howcard{
+    display:flex;align-items:center;gap:12px;text-align:left;
+    border:1px solid var(--line);border-radius:13px;padding:10px 13px;
+    background:rgba(255,255,255,.025);
+  }
+  .howcard .ico{
+    flex:0 0 36px;height:36px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    background:rgba(57,210,255,.1);color:var(--shield);font-size:17px;
+  }
+  .howcard .tx{display:flex;flex-direction:column;gap:2px}
+  .howcard .tt{font-size:12.5px;font-weight:600;letter-spacing:.4px}
+  .howcard .dd{font-size:11px;color:var(--ink-dim);line-height:1.45}
+  kbd{
+    font-family:'Chakra Petch',sans-serif;font-size:10px;min-width:20px;height:20px;padding:0 5px;
+    display:inline-flex;align-items:center;justify-content:center;
+    border:1px solid var(--line);border-bottom-width:2px;border-radius:6px;
+    background:rgba(255,255,255,.04);color:var(--ink);
+  }
+  .stagelist{display:flex;flex-direction:column;gap:6px;width:100%;max-width:300px;text-align:left}
+  .stageitem{display:flex;gap:10px;align-items:baseline;font-size:11.5px}
+  .stageitem .sn{font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--shield);flex:0 0 58px;letter-spacing:1px;font-size:11px}
+  .stageitem .sd{color:var(--ink-dim)}
+
+  .btn{
+    font-family:'Chakra Petch',sans-serif;font-weight:600;letter-spacing:2px;font-size:14px;
+    padding:13px 32px;border-radius:12px;cursor:pointer;color:var(--void-0);border:none;
+    background:linear-gradient(120deg,var(--probe),#ffe6a3);box-shadow:0 0 30px -6px var(--probe-glow);
+    transition:transform .12s ease, box-shadow .2s ease;
+  }
+  .btn:hover{transform:translateY(-2px)}
+  .btn:active{transform:translateY(0) scale(.97)}
+  .btn.ghost{
+    background:transparent;color:var(--ink-dim);box-shadow:none;
+    border:1px solid var(--line);font-size:12.5px;padding:11px 24px;
+  }
+  .btn.danger{background:linear-gradient(120deg,#ff4d6d,#ff8aa1);color:#fff;box-shadow:0 0 28px -8px rgba(255,77,109,.7)}
+
+  .resultcard{
+    display:flex;gap:22px;align-items:flex-end;justify-content:center;
+    border:1px solid var(--line);border-radius:15px;padding:16px 26px;
+    background:rgba(255,255,255,.025);
+  }
+  .resultcard .col{display:flex;flex-direction:column;gap:4px;align-items:center}
+  .resultcard .lb{font-size:9px;letter-spacing:2.5px;color:var(--ink-dim)}
+  .resultcard .vl{font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:26px;color:var(--probe)}
+  .resultcard .vl.cy{color:var(--shield);font-size:22px}
+  .newbest{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:11px;letter-spacing:3px;
+    color:#0a081a;background:linear-gradient(120deg,var(--clear),#aef7cd);
+    padding:5px 14px;border-radius:999px;animation:bestPulse 1.4s ease infinite;
+  }
+  @keyframes bestPulse{0%,100%{transform:scale(1)}50%{transform:scale(1.07)}}
+  .hidden2{display:none}
+
+  .lbwrap{width:100%;max-width:300px;display:flex;flex-direction:column;gap:9px}
+  .lbsubmit{display:flex;gap:8px}
+  .lbsubmit input{
+    flex:1;min-width:0;padding:11px 13px;border-radius:11px;
+    border:1px solid var(--line);background:rgba(255,255,255,.045);
+    color:var(--ink);font-family:'Space Grotesk',sans-serif;font-size:13px;outline:none;
+  }
+  .lbsubmit input:focus{border-color:rgba(57,210,255,.5)}
+  .btn.lbbtn{padding:11px 16px;font-size:12px;letter-spacing:1px;white-space:nowrap}
+  .btn.lbbtn:disabled{opacity:.45;cursor:default;transform:none}
+  .lbtitle{
+    font-family:'Chakra Petch',sans-serif;font-weight:700;font-size:11px;
+    letter-spacing:3px;color:var(--shield);text-align:left;margin-top:2px;
+  }
+  .lblist{
+    list-style:none;display:flex;flex-direction:column;gap:4px;
+    max-height:168px;overflow-y:auto;text-align:left;
+  }
+  .lblist li{
+    display:flex;align-items:center;gap:9px;font-size:12.5px;
+    padding:7px 11px;border-radius:9px;background:rgba(255,255,255,.03);
+    border:1px solid transparent;
+  }
+  .lblist li.me{border-color:rgba(255,209,102,.55);background:rgba(255,209,102,.07)}
+  .lblist .rk{font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--ink-dim);flex:0 0 22px;font-size:11px}
+  .lblist li:nth-child(1) .rk{color:var(--probe)}
+  .lblist li:nth-child(2) .rk{color:#cfd0ff}
+  .lblist li:nth-child(3) .rk{color:#d8a06a}
+  .lblist .nk{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .lblist .sc{font-family:'Chakra Petch',sans-serif;font-weight:700;color:var(--probe);font-variant-numeric:tabular-nums}
+  .lblist .lbload,.lblist .lberr{justify-content:center;color:var(--ink-dim);font-size:11.5px}
+
+  .hint{text-align:center;font-size:10.5px;color:var(--ink-dim);letter-spacing:.6px}
+  @media (max-width:380px){ .brand .kr{font-size:21px} .stage-pill{font-size:10px;padding:5px 9px} .ibtn{width:58px;height:58px} }
+</style>
+</head>
+<body>
+<div class="frame">
+  <div class="topbar">
+    <div class="brand"><span class="kr">표류</span><span class="en">D R I F T</span></div>
+    <div class="stage-pill" id="stagePill">STAGE <b>1</b></div>
+    <div class="scoreboard">
+      <div class="label">DISTANCE</div>
+      <div class="val" id="score">0</div>
+      <div class="best" id="best">BEST 0</div>
+    </div>
+  </div>
+
+  <div class="stage">
+    <canvas id="game"></canvas>
+    <div class="vignette"></div>
+    <button class="iconbtn soundbtn" id="soundBtn" aria-label="소리 켜기/끄기"></button>
+    <button class="iconbtn pausebtn" id="pauseBtn" aria-label="일시정지"><span></span><span></span></button>
+    <div class="itembar" id="itembar"></div>
+    <div class="banner" id="banner"></div>
+    <div class="countdown" id="countdown"></div>
+
+    <div class="overlay" id="startScreen">
+      <h2>표류</h2>
+      <p class="sub">사방에서 밀려오는 운석을 피해 오래 버티세요. 4000m마다 우주는 더 사나워집니다.</p>
+      <div class="howto">
+        <div class="howcard"><div class="ico">☄</div><div class="tx">
+          <span class="tt">이동</span>
+          <span class="dd">화면 아무 곳이나 잡고 끌면, 끈 만큼 탐사선이 움직여요 — 손가락이 기체를 가리지 않아요 · 키보드 <kbd>←</kbd><kbd>↑</kbd><kbd>↓</kbd><kbd>→</kbd></span>
+        </div></div>
+        <div class="howcard"><div class="ico">◎</div><div class="tx">
+          <span class="tt">아이템</span>
+          <span class="dd">떠다니는 오브를 모아, 화면 아래 버튼을 탭하면 즉시 발동 · 키보드 <kbd>W</kbd> 변경 <kbd>Q</kbd> 사용</span>
+        </div></div>
+        <div class="howcard"><div class="ico">‖</div><div class="tx">
+          <span class="tt">일시정지</span>
+          <span class="dd">우측 상단 버튼 또는 <kbd>P</kbd> — 백그라운드로 가면 자동으로 멈춥니다</span>
+        </div></div>
+      </div>
+      <div class="stagelist">
+        <div class="stageitem"><span class="sn">STAGE 1</span><span class="sd">기본 운석</span></div>
+        <div class="stageitem"><span class="sn">STAGE 2</span><span class="sd">유성흔 — 꼬리에 닿아도 위험</span></div>
+        <div class="stageitem"><span class="sn">STAGE 3</span><span class="sd">폭발 운석 — 파편이 흩어짐</span></div>
+        <div class="stageitem"><span class="sn">STAGE 4</span><span class="sd">진동·고속 회전 변종 출현</span></div>
+      </div>
+      <button class="btn" id="startBtn">출발</button>
+    </div>
+
+    <div class="overlay hidden" id="pauseScreen">
+      <h2>일시정지</h2>
+      <p class="sub">잠시 숨을 고르세요.</p>
+      <button class="btn" id="resumeBtn">계속하기</button>
+      <button class="btn ghost" id="quitBtn">그만하기</button>
+      <button class="btn danger hidden2" id="quitConfirmBtn">정말 그만하기 — 기록은 저장됩니다</button>
+    </div>
+
+    <div class="overlay hidden" id="overScreen">
+      <h2>표류 종료</h2>
+      <span class="newbest hidden2" id="newBest">NEW BEST</span>
+      <div class="resultcard">
+        <div class="col"><span class="lb">DISTANCE</span><span class="vl" id="finalScore">0</span></div>
+        <div class="col"><span class="lb">STAGE</span><span class="vl cy" id="finalStage">1</span></div>
+        <div class="col"><span class="lb">BEST</span><span class="vl" id="finalBest" style="font-size:20px;color:var(--ink-dim)">0</span></div>
+      </div>
+      <p class="sub" id="overMsg"></p>
+
+      <div class="lbwrap hidden2" id="lbwrap">
+        <div class="lbsubmit" id="lbsubmit">
+          <input type="text" id="nickInput" maxlength="10" placeholder="닉네임 (최대 10자)" autocomplete="off">
+          <button class="btn lbbtn" id="submitBtn">기록 등록</button>
+        </div>
+        <div class="lbtitle">TOP 10</div>
+        <ol class="lblist" id="lblist"><li class="lbload">불러오는 중…</li></ol>
+      </div>
+
+      <button class="btn" id="retryBtn">다시 표류</button>
+    </div>
+  </div>
+
+  <div class="hint">오브를 모아 아이템을 채우세요 — 방어막 · 감속 · 정화</div>
+</div>
+
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore-compat.js"></script>
+<script>
+// ============================================================
+// [설정] Firebase 콘솔에서 복사한 값을 아래에 붙여넣으세요.
+// 비워두면 리더보드 없이 게임만 동작합니다.
+// ============================================================
+const FIREBASE_CONFIG = {
+  apiKey: "AIzaSyCAsRcnRZwme16xHPUAfuYk8Br-rFpCgUg",
+  authDomain: "drift-game-sw.firebaseapp.com",
+  projectId: "drift-game-sw",
+  storageBucket: "drift-game-sw.firebasestorage.app",
+  messagingSenderId: "490915332416",
+  appId: "1:490915332416:web:c56e57e8b3413443f8baa5"
+};
+</script>
+<script>
+const canvas = document.getElementById('game');
+const ctx = canvas.getContext('2d');
+
+const W = 700, H = 900;
+let scale = 1;
+function resize(){
+  const r = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  canvas.width = r.width * dpr; canvas.height = r.height * dpr;
+  scale = canvas.width / W;
+}
+window.addEventListener('resize', resize);
+
+// ---- 저장소 어댑터 ----
+// 앱인토스 출시 시 이 객체의 get/set만 토스 Storage API 호출로 교체하면 됩니다.
+// (예: await Storage.getItem(key) / setItem(key, value) — 유저 식별키 기반 보존)
+const Store = {
+  _m:{},
+  get(k, def){
+    try{ const v=localStorage.getItem('drift_'+k); if(v!==null) return v; }catch(e){}
+    return (k in this._m) ? this._m[k] : def;
+  },
+  set(k, v){
+    this._m[k]=String(v);
+    try{ localStorage.setItem('drift_'+k, String(v)); }catch(e){}
+  }
+};
+
+// ---- 사운드 엔진 ----
+const PAD_VOL = 0.04;
+const Sound = (()=>{
+  let ctxA=null, master=null, padGain=null, started=false;
+  let muted = Store.get('muted','0')==='1';
+  function ensure(){
+    if(ctxA) return;
+    const AC=window.AudioContext||window.webkitAudioContext; if(!AC) return;
+    ctxA=new AC(); master=ctxA.createGain(); master.gain.value=0.5; master.connect(ctxA.destination);
+  }
+  function tone(freq,dur,type,vol,glideTo){
+    if(!ctxA||muted) return;
+    const t=ctxA.currentTime, o=ctxA.createOscillator(), g=ctxA.createGain();
+    o.type=type||'sine'; o.frequency.setValueAtTime(freq,t);
+    if(glideTo) o.frequency.exponentialRampToValueAtTime(glideTo,t+dur);
+    g.gain.setValueAtTime(0.0001,t);
+    g.gain.exponentialRampToValueAtTime(vol||0.25,t+0.012);
+    g.gain.exponentialRampToValueAtTime(0.0001,t+dur);
+    o.connect(g); g.connect(master); o.start(t); o.stop(t+dur+0.02);
+  }
+  function noise(dur,vol){
+    if(!ctxA||muted) return;
+    const t=ctxA.currentTime, len=Math.floor(ctxA.sampleRate*dur);
+    const buf=ctxA.createBuffer(1,len,ctxA.sampleRate), d=buf.getChannelData(0);
+    for(let i=0;i<len;i++) d[i]=(Math.random()*2-1)*(1-i/len);
+    const n=ctxA.createBufferSource(); n.buffer=buf;
+    const f=ctxA.createBiquadFilter(); f.type='lowpass'; f.frequency.value=1100;
+    const g=ctxA.createGain(); g.gain.value=vol||0.3;
+    n.connect(f); f.connect(g); g.connect(master); n.start(t); n.stop(t+dur);
+  }
+  function startPad(){
+    if(!ctxA||padGain) return;
+    const a=ctxA.createOscillator(), b=ctxA.createOscillator();
+    a.type='sine'; b.type='sine'; a.frequency.value=110; b.frequency.value=164.8; b.detune.value=6;
+    padGain=ctxA.createGain(); padGain.gain.value=muted?0:PAD_VOL;
+    const lfo=ctxA.createOscillator(), lg=ctxA.createGain();
+    lfo.frequency.value=0.14; lg.gain.value=PAD_VOL*0.5; lfo.connect(lg); lg.connect(padGain.gain);
+    a.connect(padGain); b.connect(padGain); padGain.connect(master);
+    a.start(); b.start(); lfo.start();
+  }
+  return {
+    init(){ ensure(); if(ctxA&&ctxA.state==='suspended') ctxA.resume(); if(!started&&ctxA){ startPad(); started=true; } },
+    resume(){ if(ctxA&&ctxA.state==='suspended') ctxA.resume(); },
+    suspend(){ if(ctxA&&ctxA.state==='running') ctxA.suspend(); },
+    pickup(){ tone(620,0.10,'triangle',0.22); setTimeout(()=>tone(932,0.12,'triangle',0.2),55); },
+    use(){ tone(280,0.22,'sawtooth',0.2,820); },
+    shieldHit(){ tone(1180,0.07,'square',0.13,720); },
+    boom(){ noise(0.3,0.3); tone(170,0.3,'sawtooth',0.18,60); },
+    hit(){ noise(0.45,0.45); tone(140,0.5,'sawtooth',0.3,42); },
+    stage(){ [392,494,587].forEach((f,i)=>setTimeout(()=>tone(f,0.26,'triangle',0.18),i*70)); },
+    count(last){ tone(last?880:523,0.14,'triangle',0.2); },
+    toggle(){ muted=!muted; Store.set('muted',muted?'1':'0'); if(padGain) padGain.gain.value=muted?0:PAD_VOL; if(!muted) this.resume(); return muted; },
+    isMuted(){ return muted; },
+  };
+})();
+
+function haptic(ms){ if(navigator.vibrate) try{ navigator.vibrate(ms); }catch(e){} }
+
+// ---- 아이템 / 스테이지 정의 ----
+const ITEMS = {
+  shield: { name:'방어막', color:'#39d2ff', dur:3200 },
+  slow:   { name:'감속',   color:'#b388ff', dur:4000 },
+  clear:  { name:'정화',   color:'#5cff9d', dur:0 },
+};
+const ITEM_ORDER = ['shield','slow','clear'];
+
+const STAGES = {
+  1:{n:'STAGE 01', t:'표류 시작',   d:'기본 운석을 피하세요'},
+  2:{n:'STAGE 02', t:'유성흔',      d:'꼬리에 닿아도 위험합니다'},
+  3:{n:'STAGE 03', t:'분열',        d:'운석이 폭발해 파편이 흩어집니다'},
+  4:{n:'STAGE 04', t:'혼돈의 군집',  d:'진동·회전하는 운석이 출현합니다'},
+};
+function stageFor(dist){ return dist<4000?1 : dist<8000?2 : dist<12000?3 : 4; }
+
+// ---- 상태 ----
+let state='start', keys={}, lastT=0;
+let spawnT=0, itemSpawnT=0;
+let player, hazards=[], items=[], particles=[], stars=[];
+let inventory={shield:0,slow:0,clear:0}, selIdx=0;
+let shieldUntil=0, slowUntil=0;
+let distance=0, elapsed=0, stage=1;
+let best = parseInt(Store.get('best','0'),10)||0;
+let shake=0;
+let touchActive=false, touchTX=0, touchTY=0, touchId=null;
+let cdEnd=0, cdShown=-1;
+const overMsgs = [
+  "우주는 인내심이 없습니다.",
+  "운석은 사과하지 않습니다.",
+  "조금만 더 왼쪽이었다면.",
+  "표류는 끝났지만 별빛은 남았습니다.",
+];
+
+document.getElementById('best').textContent='BEST '+best;
+
+function reset(){
+  keys={}; spawnT=0; itemSpawnT=2200; elapsed=0; distance=0; stage=1; shake=0;
+  player={ x:W/2, y:H*0.72, r:15, speed:430, trail:[] };
+  hazards=[]; items=[]; particles=[];
+  inventory={shield:0,slow:0,clear:0}; selIdx=0;
+  shieldUntil=0; slowUntil=0; touchActive=false; touchId=null;
+  initStars(); renderItembar();
+  document.getElementById('score').textContent='0';
+  document.getElementById('stagePill').innerHTML='STAGE <b>1</b>';
+  document.getElementById('pauseBtn').classList.add('show');
+  document.getElementById('soundBtn').classList.add('show');
+  document.getElementById('itembar').classList.add('show');
+}
+
+function initStars(){
+  stars=[];
+  for(let i=0;i<70;i++) stars.push({x:Math.random()*W,y:Math.random()*H,z:Math.random()*0.8+0.2,r:Math.random()*1.6+0.4});
+}
+
+function makeVerts(size){
+  const verts=[]; const n=7+Math.floor(Math.random()*4);
+  for(let i=0;i<n;i++){ const a=(i/n)*Math.PI*2; verts.push({a,rad:size*(0.72+Math.random()*0.42)}); }
+  return verts;
+}
+
+function spawnHazard(){
+  const st=stage;
+  const diff=Math.min(elapsed/45000,1);
+  const size=14+Math.random()*24+diff*10;
+  const edge=Math.random(); let x,y,ang;
+  if(edge<0.7){ x=Math.random()*W; y=-size; ang=Math.PI/2+(Math.random()-0.5)*1.1; }
+  else if(edge<0.85){ x=-size; y=Math.random()*H*0.6; ang=(Math.random()-0.5)*0.9; }
+  else { x=W+size; y=Math.random()*H*0.6; ang=Math.PI+(Math.random()-0.5)*0.9; }
+  const spd=(120+Math.random()*90)+diff*230;
+
+  const h={
+    x,y,r:size, verts:makeVerts(size),
+    vx:Math.cos(ang)*spd, vy:Math.sin(ang)*spd,
+    rot:Math.random()*Math.PI, spin:(Math.random()-0.5)*2.4,
+    ex:x, ey:y, trail:[], hasTrail: st>=2,
+    type:'normal', vibPhase:Math.random()*7, vibAmp:0, vibFreq:0,
+    volatile:false, fuse:0, isFrag:false, life:999999,
+  };
+  if(st>=4){
+    const roll=Math.random();
+    if(roll<0.30){ h.type='spinner'; h.spin=(Math.random()<.5?-1:1)*(4.5+Math.random()*3); }
+    else if(roll<0.58){ h.type='vibrator'; h.vibAmp=8+Math.random()*10; h.vibFreq=14+Math.random()*10; }
+    else if(roll<0.80){ h.volatile=true; }
+  } else if(st>=3){
+    if(Math.random()<0.42) h.volatile=true;
+  }
+  if(h.volatile) h.fuse=1100+Math.random()*1300;
+  hazards.push(h);
+}
+
+function spawnItem(){
+  const k=ITEM_ORDER[Math.floor(Math.random()*ITEM_ORDER.length)];
+  items.push({ x:60+Math.random()*(W-120), y:-26, r:16, kind:k, vy:70+Math.random()*40, drift:(Math.random()-0.5)*40, t:0 });
+}
+
+function explode(h){
+  Sound.boom(); shake=Math.min(shake+9,16);
+  burst(h.ex,h.ey,'#ffb15c',18,380);
+  burst(h.ex,h.ey,'#ff4d6d',10,260);
+  const n=3+Math.floor(Math.random()*3);
+  for(let i=0;i<n;i++){
+    const a=(i/n)*Math.PI*2 + Math.random()*0.6;
+    const spd=180+Math.random()*170; const size=8+Math.random()*7;
+    hazards.push({
+      x:h.ex, y:h.ey, r:size, verts:makeVerts(size),
+      vx:Math.cos(a)*spd, vy:Math.sin(a)*spd,
+      rot:Math.random()*7, spin:(Math.random()-0.5)*5,
+      ex:h.ex, ey:h.ey, trail:[], hasTrail: stage>=2,
+      type:'frag', vibPhase:0, vibAmp:0, vibFreq:0,
+      volatile:false, fuse:0, isFrag:true, life:2300,
+    });
+  }
+}
+
+function burst(x,y,color,count,spd){
+  for(let i=0;i<count;i++){
+    const a=Math.random()*Math.PI*2, s=Math.random()*spd;
+    particles.push({x,y,vx:Math.cos(a)*s,vy:Math.sin(a)*s,life:1,color,r:Math.random()*3+1});
+  }
+}
+
+// ---- 입력: 키보드 (e.code — 한/영 무관) ----
+const MOVE={ArrowLeft:1,ArrowRight:1,ArrowUp:1,ArrowDown:1};
+window.addEventListener('keydown', e=>{
+  const code=e.code;
+  if(MOVE[code]) e.preventDefault();
+  if(e.repeat) return;
+  if(code==='KeyP'||code==='Escape'){ togglePause(); return; }
+  if(state!=='playing'){
+    if((code==='Enter'||code==='Space') && (state==='start'||state==='over')) start();
+    return;
+  }
+  if(MOVE[code]) keys[code]=true;
+  if(code==='KeyW'){ selIdx=(selIdx+1)%ITEM_ORDER.length; renderItembar(); }
+  if(code==='KeyQ') useItemKind(ITEM_ORDER[selIdx]);
+});
+window.addEventListener('keyup', e=>{ if(MOVE[e.code]) keys[e.code]=false; });
+
+// ---- 입력: 터치 (트랙패드식 상대 이동 — 화면 어디를 잡아도 그만큼 기체가 움직임) ----
+const TOUCH_SENS = 1.25; // 손가락 이동 대비 기체 이동 배율
+let anchorX=0, anchorY=0, baseX=0, baseY=0;
+function gamePos(clientX, clientY){
+  const r=canvas.getBoundingClientRect();
+  return [(clientX-r.left)/r.width*W, (clientY-r.top)/r.height*H];
+}
+function beginDrag(clientX, clientY){
+  const [gx,gy]=gamePos(clientX,clientY);
+  anchorX=gx; anchorY=gy; baseX=player.x; baseY=player.y;
+  touchTX=player.x; touchTY=player.y;
+}
+function moveDrag(clientX, clientY){
+  const [gx,gy]=gamePos(clientX,clientY);
+  let nx=baseX+(gx-anchorX)*TOUCH_SENS;
+  let ny=baseY+(gy-anchorY)*TOUCH_SENS;
+  // 경계에 닿으면 기준점을 재보정 — 손가락을 되돌릴 때 즉시 반응(데드존 방지)
+  if(nx<player.r){ baseX+=player.r-nx; nx=player.r; }
+  if(nx>W-player.r){ baseX-=nx-(W-player.r); nx=W-player.r; }
+  if(ny<player.r){ baseY+=player.r-ny; ny=player.r; }
+  if(ny>H-player.r){ baseY-=ny-(H-player.r); ny=H-player.r; }
+  touchTX=nx; touchTY=ny;
+}
+canvas.addEventListener('touchstart', e=>{
+  if(state!=='playing') return;
+  if(touchId===null){
+    const t=e.changedTouches[0];
+    touchId=t.identifier; touchActive=true;
+    beginDrag(t.clientX,t.clientY);
+  }
+  e.preventDefault();
+},{passive:false});
+canvas.addEventListener('touchmove', e=>{
+  if(!touchActive) return;
+  for(const t of e.changedTouches){ if(t.identifier===touchId){ moveDrag(t.clientX,t.clientY); break; } }
+  e.preventDefault();
+},{passive:false});
+function endTouch(e){
+  for(const t of e.changedTouches){ if(t.identifier===touchId){ touchActive=false; touchId=null; } }
+}
+canvas.addEventListener('touchend', endTouch);
+canvas.addEventListener('touchcancel', endTouch);
+
+let mouseDown=false;
+canvas.addEventListener('mousedown', e=>{ if(state!=='playing')return; mouseDown=true; touchActive=true; beginDrag(e.clientX,e.clientY); });
+window.addEventListener('mousemove', e=>{ if(mouseDown&&touchActive) moveDrag(e.clientX,e.clientY); });
+window.addEventListener('mouseup', ()=>{ mouseDown=false; if(touchId===null) touchActive=false; });
+
+// ---- 아이템 ----
+function useItemKind(kind){
+  if(state!=='playing') return;
+  if(inventory[kind]<=0) return;
+  inventory[kind]--;
+  selIdx=ITEM_ORDER.indexOf(kind);
+  Sound.use(); haptic(18);
+  const now=performance.now(), c=ITEMS[kind].color;
+  if(kind==='shield') shieldUntil=now+ITEMS.shield.dur;
+  else if(kind==='slow') slowUntil=now+ITEMS.slow.dur;
+  else if(kind==='clear'){
+    hazards.forEach(h=>burst(h.ex,h.ey,'#ff7a93',10,260));
+    hazards=[]; burst(player.x,player.y,c,40,420); shake=Math.min(shake+7,16);
+  }
+  burst(player.x,player.y,c,18,300);
+  const el=document.querySelector(`.ibtn[data-kind="${kind}"]`);
+  if(el){ el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  renderItembar();
+}
+
+function renderItembar(){
+  const bar=document.getElementById('itembar'); bar.innerHTML='';
+  ITEM_ORDER.forEach((k,i)=>{
+    const it=ITEMS[k], n=inventory[k];
+    const b=document.createElement('button');
+    b.className='ibtn'+(n<=0?' empty':'')+(i===selIdx?' sel':'');
+    b.dataset.kind=k;
+    b.style.setProperty('--c',it.color);
+    b.innerHTML=`<span class="ic"></span><span class="nm">${it.name}</span><span class="ct">${n}</span><span class="qtag">Q</span>`;
+    // touchstart로 즉시 발동 — 캔버스 드래그 중에도 다른 손가락으로 동작
+    b.addEventListener('touchstart', ev=>{ ev.preventDefault(); ev.stopPropagation(); useItemKind(k); }, {passive:false});
+    b.addEventListener('click', ev=>{ ev.preventDefault(); useItemKind(k); });
+    bar.appendChild(b);
+  });
+}
+
+// ---- 일시정지 / 종료 ----
+function togglePause(){
+  if(state==='playing'){ state='paused'; show('pauseScreen'); resetQuit(); }
+  else if(state==='paused'){ hide('pauseScreen'); beginCountdown(); }
+}
+function resetQuit(){
+  document.getElementById('quitBtn').classList.remove('hidden2');
+  document.getElementById('quitConfirmBtn').classList.add('hidden2');
+}
+document.getElementById('resumeBtn').addEventListener('click', ()=>{ if(state==='paused'){ hide('pauseScreen'); beginCountdown(); } });
+document.getElementById('quitBtn').addEventListener('click', ()=>{
+  document.getElementById('quitBtn').classList.add('hidden2');
+  document.getElementById('quitConfirmBtn').classList.remove('hidden2');
+});
+document.getElementById('quitConfirmBtn').addEventListener('click', ()=>{
+  saveBest();
+  state='start';
+  hide('pauseScreen');
+  document.getElementById('pauseBtn').classList.remove('show');
+  document.getElementById('itembar').classList.remove('show');
+  show('startScreen');
+  ambientLoop();
+});
+document.getElementById('pauseBtn').addEventListener('click', togglePause);
+
+// ---- 카운트다운 ----
+function beginCountdown(){
+  state='countdown'; cdEnd=performance.now()+1500; cdShown=-1;
+  document.getElementById('countdown').classList.add('show');
+  lastT=performance.now();
+  requestAnimationFrame(loop);
+}
+function updateCountdown(now){
+  const remain=cdEnd-now;
+  const n=Math.ceil(remain/500);
+  if(n!==cdShown && n>=1){
+    cdShown=n;
+    document.getElementById('countdown').innerHTML=`<span class="num">${n}</span>`;
+    Sound.count(n===1);
+  }
+  if(remain<=0){
+    document.getElementById('countdown').classList.remove('show');
+    state='playing'; lastT=now;
+  }
+}
+
+// ---- 루프 ----
+function loop(now){
+  if(state==='countdown'){ updateCountdown(now); draw(now); requestAnimationFrame(loop); return; }
+  if(state!=='playing') return;
+  let dt=(now-lastT)/1000; lastT=now; if(dt>0.05) dt=0.05;
+  update(dt,now); draw(now);
+  requestAnimationFrame(loop);
+}
+
+function update(dt, now){
+  elapsed += dt*1000;
+  distance += dt*55*(1+Math.min(elapsed/60000,1.2));
+  document.getElementById('score').textContent=Math.floor(distance);
+
+  const ns=stageFor(distance);
+  if(ns!==stage){ stage=ns; showStageBanner(stage); }
+
+  const slowed = now<slowUntil;
+  const tScale = slowed?0.42:1;
+  shake*=Math.pow(0.0005,dt); if(shake<0.1) shake=0;
+
+  if(touchActive){
+    const sx=Math.max(player.r,Math.min(W-player.r,touchTX));
+    const sy=Math.max(player.r,Math.min(H-player.r,touchTY));
+    const sm=Math.min(1, dt*22);
+    player.x+=(sx-player.x)*sm; player.y+=(sy-player.y)*sm;
+  } else {
+    let ax=0,ay=0;
+    if(keys.ArrowLeft)ax-=1; if(keys.ArrowRight)ax+=1;
+    if(keys.ArrowUp)ay-=1; if(keys.ArrowDown)ay+=1;
+    const len=Math.hypot(ax,ay)||1;
+    player.x+=(ax/len)*player.speed*dt; player.y+=(ay/len)*player.speed*dt;
+    player.x=Math.max(player.r,Math.min(W-player.r,player.x));
+    player.y=Math.max(player.r,Math.min(H-player.r,player.y));
+  }
+  player.trail.unshift({x:player.x,y:player.y}); if(player.trail.length>10) player.trail.pop();
+
+  for(const s of stars){ s.y+=(12+s.z*22)*dt*tScale; if(s.y>H){s.y=0;s.x=Math.random()*W;} }
+
+  spawnT-=dt*1000;
+  const diff=Math.min(elapsed/45000,1);
+  const interval=720-diff*430;
+  if(spawnT<=0){ spawnHazard(); spawnT=interval*(0.6+Math.random()*0.8); }
+
+  itemSpawnT-=dt*1000;
+  if(itemSpawnT<=0){ spawnItem(); itemSpawnT=5500+Math.random()*3500; }
+
+  const shielded=now<shieldUntil;
+  for(let i=hazards.length-1;i>=0;i--){
+    const h=hazards[i];
+    h.rot += h.spin*dt*tScale;
+    h.x += h.vx*dt*tScale; h.y += h.vy*dt*tScale;
+
+    let ex=h.x, ey=h.y;
+    if(h.type==='vibrator'){
+      h.vibPhase += h.vibFreq*dt*tScale;
+      const pa=Math.atan2(h.vy,h.vx)+Math.PI/2;
+      const off=Math.sin(h.vibPhase)*h.vibAmp;
+      ex+=Math.cos(pa)*off; ey+=Math.sin(pa)*off;
+    }
+    h.ex=ex; h.ey=ey;
+
+    if(h.volatile){ h.fuse-=dt*1000*tScale; if(h.fuse<=0){ explode(h); hazards.splice(i,1); continue; } }
+    if(h.isFrag){ h.life-=dt*1000; if(h.life<=0){ hazards.splice(i,1); continue; } }
+
+    if(h.hasTrail){ h.trail.unshift({x:ex,y:ey}); if(h.trail.length>60) h.trail.pop(); }
+
+    const off2 = h.x<-120||h.x>W+120||h.y>H+200||h.y<-260;
+    let tailOff=true;
+    if(h.trail.length){ const o=h.trail[h.trail.length-1]; tailOff = o.y<-50||o.y>H+50||o.x<-50||o.x>W+50; }
+    if(off2 && tailOff){ hazards.splice(i,1); continue; }
+
+    const d=Math.hypot(ex-player.x, ey-player.y);
+    if(d < h.r*0.78 + player.r*0.7){
+      if(shielded){ Sound.shieldHit(); burst(ex,ey,'#aef3ff',12,260); hazards.splice(i,1); continue; }
+      else { gameOver(); return; }
+    }
+
+    if(!shielded && h.hasTrail && h.trail.length>3){
+      for(let ti=2; ti<h.trail.length; ti++){
+        const f=1-ti/h.trail.length;
+        if(f<0.25) break;
+        const tp=h.trail[ti];
+        const tr=h.r*(0.35+f*0.55);
+        const dd=Math.hypot(tp.x-player.x, tp.y-player.y);
+        if(dd < tr*0.6 + player.r*0.5){ gameOver(); return; }
+      }
+    }
+  }
+
+  for(let i=items.length-1;i>=0;i--){
+    const it=items[i]; it.t+=dt;
+    it.y+=it.vy*dt*tScale; it.x+=Math.sin(it.t*1.6)*it.drift*dt;
+    if(it.y>H+30){ items.splice(i,1); continue; }
+    const d=Math.hypot(it.x-player.x, it.y-player.y);
+    if(d<it.r+player.r){
+      inventory[it.kind]++; Sound.pickup(); haptic(10);
+      burst(it.x,it.y,ITEMS[it.kind].color,16,240);
+      items.splice(i,1); renderItembar();
+    }
+  }
+
+  for(let i=particles.length-1;i>=0;i--){
+    const p=particles[i];
+    p.x+=p.vx*dt; p.y+=p.vy*dt; p.vx*=0.94; p.vy*=0.94;
+    p.life-=dt*1.7; if(p.life<=0) particles.splice(i,1);
+  }
+}
+
+// ---- 렌더 ----
+function drawTrail(h){
+  const pts=h.trail; const n=pts.length;
+  if(n<2) return;
+  let head;
+  if(h.volatile) head='255,177,92';
+  else if(h.type==='vibrator') head='201,168,255';
+  else if(h.type==='spinner') head='255,214,160';
+  else head='255,107,138';
+
+  const left=[], right=[];
+  for(let i=0;i<n;i++){
+    const p=pts[i];
+    const a=pts[Math.max(0,i-1)], b=pts[Math.min(n-1,i+1)];
+    let tx=b.x-a.x, ty=b.y-a.y; const tl=Math.hypot(tx,ty)||1; tx/=tl; ty/=tl;
+    const px=-ty, py=tx;
+    const f=1-i/n;
+    const w=h.r*(0.30+f*0.62);
+    left.push([p.x+px*w, p.y+py*w]);
+    right.push([p.x-px*w, p.y-py*w]);
+  }
+
+  ctx.save();
+  ctx.globalCompositeOperation='lighter';
+  ctx.beginPath();
+  ctx.moveTo(left[0][0],left[0][1]);
+  for(let i=1;i<n;i++) ctx.lineTo(left[i][0],left[i][1]);
+  for(let i=n-1;i>=0;i--) ctx.lineTo(right[i][0],right[i][1]);
+  ctx.closePath();
+  const g=ctx.createLinearGradient(pts[0].x,pts[0].y,pts[n-1].x,pts[n-1].y);
+  g.addColorStop(0,`rgba(${head},0.50)`);
+  g.addColorStop(0.45,`rgba(${head},0.20)`);
+  g.addColorStop(1,`rgba(${head},0)`);
+  ctx.fillStyle=g; ctx.fill();
+
+  ctx.beginPath();
+  ctx.moveTo(pts[0].x,pts[0].y);
+  for(let i=1;i<n;i++) ctx.lineTo(pts[i].x,pts[i].y);
+  const g2=ctx.createLinearGradient(pts[0].x,pts[0].y,pts[n-1].x,pts[n-1].y);
+  g2.addColorStop(0,'rgba(255,255,255,0.9)');
+  g2.addColorStop(0.22,`rgba(${head},0.7)`);
+  g2.addColorStop(1,`rgba(${head},0)`);
+  ctx.lineWidth=Math.max(2,h.r*0.42); ctx.lineCap='round'; ctx.lineJoin='round';
+  ctx.strokeStyle=g2; ctx.stroke();
+  ctx.restore();
+}
+
+function draw(now){
+  ctx.save(); ctx.scale(scale,scale);
+  ctx.clearRect(0,0,W,H);
+  if(shake>0){
+    ctx.translate((Math.random()-0.5)*shake,(Math.random()-0.5)*shake);
+  }
+
+  for(const s of stars){
+    ctx.globalAlpha=0.3+s.z*0.6; ctx.fillStyle='#cfd0ff';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  if(now<slowUntil){ ctx.fillStyle='rgba(179,136,255,0.06)'; ctx.fillRect(0,0,W,H); }
+
+  for(const it of items){
+    const c=ITEMS[it.kind].color, pulse=1+Math.sin(it.t*4)*0.12;
+    ctx.save(); ctx.translate(it.x,it.y);
+    ctx.shadowColor=c; ctx.shadowBlur=22; ctx.strokeStyle=c; ctx.lineWidth=3; ctx.globalAlpha=0.95;
+    ctx.beginPath(); ctx.arc(0,0,it.r*pulse,0,7); ctx.stroke();
+    ctx.fillStyle=c; ctx.globalAlpha=0.85; ctx.beginPath(); ctx.arc(0,0,it.r*0.4,0,7); ctx.fill();
+    ctx.restore();
+  }
+
+  for(const h of hazards){
+    if(h.hasTrail && h.trail.length>1) drawTrail(h);
+
+    let outline='rgba(255,180,195,.6)';
+    if(h.type==='spinner') outline='rgba(255,225,180,.95)';
+    else if(h.type==='vibrator') outline='rgba(200,170,255,.95)';
+    if(h.volatile) outline='rgba(255,190,120,.98)';
+
+    ctx.save(); ctx.translate(h.ex,h.ey); ctx.rotate(h.rot);
+    ctx.shadowColor= h.volatile?'#ff9a3c':'#ff4d6d'; ctx.shadowBlur=16;
+    ctx.beginPath();
+    h.verts.forEach((v,i)=>{ const px=Math.cos(v.a)*v.rad, py=Math.sin(v.a)*v.rad; i?ctx.lineTo(px,py):ctx.moveTo(px,py); });
+    ctx.closePath();
+    const g=ctx.createRadialGradient(0,0,2,0,0,h.r*1.2);
+    if(h.volatile){ g.addColorStop(0,'#ffcf8a'); g.addColorStop(1,'#c0421e'); }
+    else { g.addColorStop(0,'#ff8aa1'); g.addColorStop(1,'#c01e3c'); }
+    ctx.fillStyle=g; ctx.fill();
+    ctx.lineWidth= h.type==='spinner'?2.4:1.5; ctx.strokeStyle=outline; ctx.stroke();
+
+    if(h.volatile){
+      const urg=Math.max(0.12, h.fuse/1600);
+      if(Math.sin(now/(50+urg*230))>0){
+        ctx.shadowColor='#ffd27a'; ctx.shadowBlur=18; ctx.fillStyle='#fff3d0';
+        ctx.beginPath(); ctx.arc(0,0,h.r*0.32,0,7); ctx.fill();
+      }
+    }
+    ctx.restore();
+  }
+
+  for(const p of particles){
+    ctx.globalAlpha=Math.max(p.life,0); ctx.fillStyle=p.color;
+    ctx.beginPath(); ctx.arc(p.x,p.y,p.r,0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  for(let i=player.trail.length-1;i>=0;i--){
+    const t=player.trail[i];
+    ctx.globalAlpha=(1-i/player.trail.length)*0.25; ctx.fillStyle='#ffd166';
+    ctx.beginPath(); ctx.arc(t.x,t.y,player.r*(1-i/14),0,7); ctx.fill();
+  }
+  ctx.globalAlpha=1;
+
+  if(now<shieldUntil){
+    const a=0.4+Math.sin(now/120)*0.25;
+    ctx.strokeStyle=`rgba(57,210,255,${a})`; ctx.lineWidth=3; ctx.shadowColor='#39d2ff'; ctx.shadowBlur=20;
+    ctx.beginPath(); ctx.arc(player.x,player.y,player.r+10,0,7); ctx.stroke(); ctx.shadowBlur=0;
+  }
+
+  ctx.save(); ctx.translate(player.x,player.y);
+  let dir=Math.atan2(keys.ArrowDown?1:keys.ArrowUp?-1:0, keys.ArrowRight?1:keys.ArrowLeft?-1:0);
+  if(!(keys.ArrowLeft||keys.ArrowRight||keys.ArrowUp||keys.ArrowDown)) dir=-Math.PI/2;
+  ctx.rotate(dir);
+  ctx.shadowColor='#ffd166'; ctx.shadowBlur=22; ctx.fillStyle='#ffe6a3';
+  ctx.beginPath(); ctx.moveTo(player.r,0); ctx.lineTo(-player.r*0.7,player.r*0.7);
+  ctx.lineTo(-player.r*0.35,0); ctx.lineTo(-player.r*0.7,-player.r*0.7); ctx.closePath(); ctx.fill();
+  ctx.fillStyle='#070612'; ctx.beginPath(); ctx.arc(0,0,player.r*0.28,0,7); ctx.fill();
+  ctx.restore();
+
+  ctx.restore();
+}
+
+// ---- UI ----
+function show(id){ document.getElementById(id).classList.remove('hidden'); }
+function hide(id){ document.getElementById(id).classList.add('hidden'); }
+
+function showStageBanner(n){
+  Sound.stage(); haptic(14);
+  const b=document.getElementById('banner'), s=STAGES[n];
+  b.innerHTML=`<div class="n">${s.n}</div><div class="t">${s.t}</div><div class="d">${s.d}</div>`;
+  b.classList.remove('show'); void b.offsetWidth; b.classList.add('show');
+  const pill=document.getElementById('stagePill');
+  pill.innerHTML=`STAGE <b>${n}</b>`;
+  pill.style.borderColor='rgba(57,210,255,.5)'; pill.style.boxShadow='0 0 22px -8px rgba(57,210,255,.8)';
+  setTimeout(()=>{ pill.style.boxShadow='none'; pill.style.borderColor='var(--line)'; }, 1600);
+  const maxSt=parseInt(Store.get('maxStage','1'),10)||1;
+  if(n>maxSt) Store.set('maxStage',n);
+}
+
+function saveBest(){
+  const cur=Math.floor(distance);
+  if(cur>best){ best=cur; Store.set('best',best); }
+  document.getElementById('best').textContent='BEST '+best;
+}
+
+function start(){
+  Sound.init();
+  resize(); reset();
+  hide('startScreen'); hide('overScreen'); hide('pauseScreen');
+  showStageBanner(1);
+  beginCountdown();
+}
+
+function gameOver(){
+  state='over';
+  const cur=Math.floor(distance);
+  const wasNew = cur>best;
+  saveBest();
+  Sound.hit(); haptic(90); shake=14;
+  document.getElementById('pauseBtn').classList.remove('show');
+  document.getElementById('itembar').classList.remove('show');
+  document.getElementById('finalScore').textContent=cur;
+  document.getElementById('finalStage').textContent=stage;
+  document.getElementById('finalBest').textContent=best;
+  document.getElementById('newBest').classList.toggle('hidden2', !wasNew);
+  document.getElementById('overMsg').textContent=overMsgs[Math.floor(Math.random()*overMsgs.length)];
+  LB.onGameOver();
+  burst(player.x,player.y,'#ff4d6d',46,520);
+  // 마지막 폭발 파티클이 보이도록 잠깐 더 그린 뒤 오버레이 표시
+  let until=performance.now()+450;
+  (function lastDraw(t){
+    draw(t);
+    if(t<until) requestAnimationFrame(lastDraw);
+    else show('overScreen');
+  })(performance.now());
+}
+
+// ---- 리더보드 (Firebase Firestore) ----
+const LB = (()=>{
+  let db=null, submitted=false;
+  const enabled = ()=> !!(FIREBASE_CONFIG && FIREBASE_CONFIG.apiKey && window.firebase);
+  function init(){
+    if(db || !enabled()) return;
+    try{
+      firebase.initializeApp(FIREBASE_CONFIG);
+      db=firebase.firestore();
+    }catch(e){ console.warn('LB init 실패', e); db=null; }
+  }
+  async function fetchTop(){
+    const list=document.getElementById('lblist');
+    try{
+      const snap=await db.collection('scores').orderBy('score','desc').limit(10).get();
+      if(snap.empty){ list.innerHTML='<li class="lbload">아직 기록이 없어요 — 첫 주인공이 되어보세요!</li>'; return; }
+      const myNick=Store.get('nick','');
+      const myScore=Math.floor(distance);
+      let marked=false;
+      list.innerHTML='';
+      let rank=1;
+      snap.forEach(doc=>{
+        const d=doc.data();
+        const li=document.createElement('li');
+        const isMe=!marked && submitted && d.name===myNick && d.score===myScore;
+        if(isMe){ li.className='me'; marked=true; }
+        const nm=String(d.name||'???').slice(0,10);
+        li.innerHTML=`<span class="rk">${rank}</span><span class="nk"></span><span class="sc">${Number(d.score)||0}</span>`;
+        li.querySelector('.nk').textContent=nm;
+        list.appendChild(li);
+        rank++;
+      });
+    }catch(e){
+      console.warn('LB 조회 실패', e);
+      list.innerHTML='<li class="lberr">랭킹을 불러오지 못했어요</li>';
+    }
+  }
+  async function submit(){
+    if(submitted || !db) return;
+    const input=document.getElementById('nickInput');
+    const btn=document.getElementById('submitBtn');
+    const nick=(input.value||'').trim().slice(0,10);
+    if(!nick){ input.focus(); return; }
+    btn.disabled=true; btn.textContent='등록 중…';
+    Store.set('nick',nick);
+    try{
+      await db.collection('scores').add({
+        name:nick,
+        score:Math.floor(distance),
+        stage:stage,
+        ts:firebase.firestore.FieldValue.serverTimestamp()
+      });
+      submitted=true;
+      btn.textContent='등록 완료';
+      input.disabled=true;
+      Sound.pickup();
+      fetchTop();
+    }catch(e){
+      console.warn('LB 등록 실패', e);
+      btn.disabled=false; btn.textContent='다시 시도';
+    }
+  }
+  function onGameOver(){
+    const wrap=document.getElementById('lbwrap');
+    if(!enabled()){ wrap.classList.add('hidden2'); return; }
+    init();
+    if(!db){ wrap.classList.add('hidden2'); return; }
+    wrap.classList.remove('hidden2');
+    submitted=false;
+    const input=document.getElementById('nickInput');
+    const btn=document.getElementById('submitBtn');
+    input.disabled=false; input.value=Store.get('nick','');
+    btn.disabled=false; btn.textContent='기록 등록';
+    document.getElementById('lblist').innerHTML='<li class="lbload">불러오는 중…</li>';
+    fetchTop();
+  }
+  return { onGameOver, submit };
+})();
+document.getElementById('submitBtn').addEventListener('click', ()=>LB.submit());
+document.getElementById('nickInput').addEventListener('keydown', e=>{
+  e.stopPropagation(); // 게임 키 입력과 충돌 방지
+  if(e.key==='Enter') LB.submit();
+});
+
+document.getElementById('startBtn').addEventListener('click', start);
+document.getElementById('retryBtn').addEventListener('click', start);
+
+// ---- 사운드 버튼 ----
+const SND_ON='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><path d="M15.5 8.5a5 5 0 0 1 0 7"/></svg>';
+const SND_OFF='<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M11 5 6 9H2v6h4l5 4z"/><line x1="22" y1="9" x2="16" y2="15"/><line x1="16" y1="9" x2="22" y2="15"/></svg>';
+function updateSoundIcon(){ document.getElementById('soundBtn').innerHTML = Sound.isMuted()?SND_OFF:SND_ON; }
+document.getElementById('soundBtn').addEventListener('click', ()=>{ Sound.init(); Sound.toggle(); updateSoundIcon(); });
+document.getElementById('soundBtn').classList.add('show');
+updateSoundIcon();
+
+// ---- 백그라운드 전환 ----
+document.addEventListener('visibilitychange', ()=>{
+  if(document.hidden){
+    if(state==='playing'||state==='countdown'){
+      document.getElementById('countdown').classList.remove('show');
+      state='paused'; show('pauseScreen'); resetQuit();
+    }
+    Sound.suspend();
+  } else {
+    if(!Sound.isMuted()) Sound.resume();
+  }
+});
+
+// ---- 부팅 ----
+resize(); initStars();
+function ambientLoop(){
+  if(state!=='start') return;
+  ctx.save(); ctx.scale(scale,scale); ctx.clearRect(0,0,W,H);
+  for(const s of stars){
+    s.y+=(12+s.z*22)/60; if(s.y>H){s.y=0;s.x=Math.random()*W;}
+    ctx.globalAlpha=0.3+s.z*0.6; ctx.fillStyle='#cfd0ff';
+    ctx.beginPath(); ctx.arc(s.x,s.y,s.r,0,7); ctx.fill();
+  }
+  ctx.restore(); requestAnimationFrame(ambientLoop);
+}
+ambientLoop();
+</script>
+</body>
+</html>
